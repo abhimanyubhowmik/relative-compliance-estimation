@@ -1,0 +1,16 @@
+# Core — required to run all analysis and visualisation scripts
+numpy
+opencv-python
+matplotlib
+pandas
+scipy
+
+# Data preparation — only needed if processing your own ROS bag files
+# rosbags          # pure-Python bag reader used by data_preparation/bags_to_mp4.py
+# lz4              # LZ4-compressed bag support (create_compliance_pointcloud.py, patch_rosbag_lz4.py)
+
+# Monocular depth point cloud — only needed for create_monocular_compliance_pointcloud.py
+# torch
+# torchvision
+# transformers
+# Pillow
