@@ -87,25 +87,6 @@ python scripts/make_hero_compliance_video.py \
   --out results/hero_compliance.mp4
 ```
 
-### 3D point cloud (optional)
-
-If you have the original RealSense bag file:
-
-```bash
-python scripts/create_compliance_pointcloud.py results/plant_1 /path/to/recording.bag --mode compliance
-```
-
-Or without a bag, using monocular depth estimation:
-
-```bash
-python scripts/create_monocular_compliance_pointcloud.py \
-  results/plant_1 \
-  --video-path data/plant_1/video.mp4 \
-  --model transformers-depth-anything-v2 \
-  --allow-downloads \
-  --mode compliance
-```
-
 ---
 
 ## Using it on your own plant
