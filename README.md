@@ -1,31 +1,7 @@
 # Relative Compliance Estimation of Wind-Excited Plants from Monocular Video
 
-This is the code and data release for our ICRA 2026 workshop paper. The idea is simple: given a video of a plant branch blowing in the wind, can we figure out which parts of the branch are stiffer and which are more flexible — just from how they move? Turns out, yes.
-
+This is the code and data release for our ICRA 2026 workshop paper. The idea is simple: given a video of a plant branch blowing in the wind, how can we figure out which parts of the branch are stiffer and which are more flexible?
 We track branch nodes through the video using TAPIR, fit a rank-1 compliance model to the bending angles, and get per-edge relative compliance values with bootstrap confidence intervals. No depth sensor, no force measurements, just a plain RGB video.
-
----
-
-## What's in here
-
-```
-data/
-  plant_1/  — source video, pre-computed TAPIR tracks, branch graph, node annotations
-  plant_2/  — same for the second plant
-
-results/
-  plant_1/  — all analysis outputs (CSVs, overlay images, annotated videos)
-  plant_2/
-  hero_compliance.mp4  — side-by-side compliance video for both plants
-
-figures/
-  plant_1/  — paper figures (Fig. 4–7 + supplementary), ready to use
-  plant_2/
-
-scripts/    — the actual pipeline
-data_preparation/  — tools for going from a ROS bag to trackable annotations
-```
-
 The TAPIR tracks are already computed and included, so you can run the full analysis pipeline without touching any point tracking.
 
 ---
@@ -182,7 +158,13 @@ The defaults work well, but if your results look noisy or over-smoothed:
 
 If this is useful for your work, please cite the paper:
 
-```
-Uncertainty-Aware Relative Compliance Estimation of Wind-Excited Plant from Monocular Video
-ICRA 2026 Workshop
+```bibtex
+
+@inproceedings{bhowmik2026uncertainty,
+  title     = {Uncertainty-Aware Relative Compliance Estimation of Wind-Excited Plant from Monocular Video},
+  author    = {Bhowmik, Abhimanyu and Behrens, Jan and Babuska, Robert},
+  booktitle = {ICRA 2026 Workshop on Uncertainty in Open-World Robotics},
+  year      = {2026}
+}
+
 ```
