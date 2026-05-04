@@ -1,76 +1,53 @@
-# Uncertainty-Aware Relative Compliance Estimation of Wind-Excited Plants from Monocular Video
+# Relative Compliance Estimation of Wind-Excited Plants from Monocular Video
 
-Repository for the ICRA 2026 workshop paper of the same name.
+This is the code and data release for our ICRA 2026 workshop paper. The idea is simple: given a video of a plant branch blowing in the wind, can we figure out which parts of the branch are stiffer and which are more flexible — just from how they move? Turns out, yes.
 
-Given a monocular video of a wind-excited plant branch with annotated nodes, the pipeline estimates a per-edge **relative compliance map** κ_e (how much each branch segment bends relative to others under the same wind load), together with 95% bootstrap confidence intervals.
-
-Pre-computed TAPIR tracks, full analysis results, and publication figures for both plant experiments are included so all results can be reproduced without re-running point tracking.
+We track branch nodes through the video using TAPIR, fit a rank-1 compliance model to the bending angles, and get per-edge relative compliance values with bootstrap confidence intervals. No depth sensor, no force measurements, just a plain RGB video.
 
 ---
 
-## Repository structure
+## What's in here
 
 ```
-.
-├── data/
-│   ├── plant_1/
-│   │   ├── video.mp4               # source RGB video (RealSense D435i)
-│   │   ├── tapir_tracks.csv        # pre-computed TAPIR point tracks (point_id, frame, x, y)
-│   │   ├── branch_graph.json       # rooted branch skeleton (20 nodes, root=11)
-│   │   └── annotation_points.json  # initial node positions clicked on frame 0
-│   └── plant_2/
-│       ├── video.mp4
-│       ├── tapir_tracks.csv
-│       ├── branch_graph.json       # rooted branch skeleton (25 nodes, root=24)
-│       └── annotation_points.json
-├── results/
-│   ├── plant_1/                    # full analysis output for plant 1
-│   ├── plant_2/                    # full analysis output for plant 2
-│   └── hero_compliance.mp4         # side-by-side compliance video (both plants)
-├── figures/
-│   ├── plant_1/                    # publication figures (PDF) for plant 1
-│   └── plant_2/                    # publication figures (PDF) for plant 2
-├── scripts/                        # analysis and visualisation pipeline
-│   ├── analyze_branch_compliance.py          # core compliance estimation
-│   ├── render_graph_tracks_video.py          # overlay smoothed tracks on video
-│   ├── plot_tracks_pca_video.py              # PCA motion-arrow video
-│   ├── make_paper_figures.py                 # generate all paper figures (Figs 4–7)
-│   ├── create_compliance_overlay.py          # compliance heatmap overlays on first frame
-│   ├── create_compliance_pointcloud.py       # 3D compliance point cloud (from RealSense bag)
-│   ├── create_monocular_compliance_pointcloud.py  # 3D point cloud via monocular depth
-│   └── make_hero_compliance_video.py         # side-by-side hero compliance video
-└── data_preparation/               # tools for processing your own recordings
-    ├── select_points.py            # interactive GUI to annotate node positions
-    ├── bags_to_mp4.py              # convert ROS1 bag files to MP4 (no ROS install needed)
-    ├── bag_reader.py               # low-level pure-Python bag reader
-    ├── decompress_bag.py           # decompress lz4-compressed bags
-    └── patch_rosbag_lz4.py        # monkey-patch rosbag for lz4 support
+data/
+  plant_1/  — source video, pre-computed TAPIR tracks, branch graph, node annotations
+  plant_2/  — same for the second plant
+
+results/
+  plant_1/  — all analysis outputs (CSVs, overlay images, annotated videos)
+  plant_2/
+  hero_compliance.mp4  — side-by-side compliance video for both plants
+
+figures/
+  plant_1/  — paper figures (Fig. 4–7 + supplementary), ready to use
+  plant_2/
+
+scripts/    — the actual pipeline
+data_preparation/  — tools for going from a ROS bag to trackable annotations
 ```
+
+The TAPIR tracks are already computed and included, so you can run the full analysis pipeline without touching any point tracking.
 
 ---
 
-## Installation
+## Getting started
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Uncomment the optional sections in `requirements.txt` if you also want to:
-- Process your own ROS bag files (`rosbags`, `lz4`)
-- Generate monocular depth point clouds (`torch`, `transformers`, `Pillow`)
+That's it for the analysis pipeline. If you want to process your own ROS bag recordings, also uncomment `rosbags` and `lz4` in the requirements file.
 
 ---
 
-## Reproducing the results
+## Reproducing the paper results
 
-All commands below run from the repository root.
+### Run the compliance analysis
 
-### 1 — Run the compliance analysis
+This is the core step — smoothing, bending angle extraction, rank-1 model fit, bootstrap CIs:
 
-The TAPIR tracks are already provided. Run the core pipeline directly:
-
-**Plant 1**
 ```bash
+# Plant 1
 python scripts/analyze_branch_compliance.py \
   data/plant_1/tapir_tracks.csv \
   data/plant_1/branch_graph.json \
@@ -78,10 +55,8 @@ python scripts/analyze_branch_compliance.py \
   --video-path data/plant_1/video.mp4 \
   --smooth-window 5 \
   --use-factor-graph-smoother
-```
 
-**Plant 2**
-```bash
+# Plant 2
 python scripts/analyze_branch_compliance.py \
   data/plant_2/tapir_tracks.csv \
   data/plant_2/branch_graph.json \
@@ -91,95 +66,62 @@ python scripts/analyze_branch_compliance.py \
   --use-factor-graph-smoother
 ```
 
-Key outputs written to `results/plant_X/`:
+The main outputs you'll care about are `compliance_summary.csv` (per-edge κ_e with 95% CI) and `annotated_nodes.mp4` (the source video with tracks overlaid). Everything else — bending metrics, node motion, zone summaries, smoothing comparisons — lands in the same output folder.
 
-| File | Contents |
-|------|----------|
-| `compliance_summary.csv` | Per-edge κ_e, 95% CI bounds, root distance, zone |
-| `bending_metrics.csv` | Per-bend angle RMS and CI |
-| `node_metrics.csv` | Per-node relative motion RMS and CI |
-| `analysis_tracks.csv` | Factor-graph smoothed tracks used in all downstream steps |
-| `annotated_nodes.mp4` | Source video with MA-smoothed tracks overlaid |
-
-### 2 — Render smoothed-track videos
+### Regenerate the paper figures
 
 ```bash
-# Factor-graph smoothed tracks (plant 1)
+python scripts/make_paper_figures.py --data-dir results/plant_1 --out-dir figures/plant_1
+python scripts/make_paper_figures.py --data-dir results/plant_2 --out-dir figures/plant_2
+```
+
+Figures 4–7 and the supplementary zone plot will appear as PDFs. The pre-generated ones are already in `figures/`.
+
+### Render the smoothed track videos
+
+The MA-smoothed track video is written automatically during the analysis step. For the factor-graph smoothed version:
+
+```bash
 python scripts/render_graph_tracks_video.py \
   data/plant_1/video.mp4 \
   results/plant_1/analysis_tracks.csv \
   data/plant_1/branch_graph.json \
   --out-path results/plant_1/annotated_nodes_factor_graph_smoothed.mp4
-
-# PCA motion arrows video
-python scripts/plot_tracks_pca_video.py \
-  data/plant_1/video.mp4 \
-  data/plant_1/tapir_tracks.csv \
-  --out results/plant_1/tapir_pca_video.mp4
 ```
 
-### 3 — Generate paper figures
+### Compliance heatmap overlays
+
+Overlays compliance (and uncertainty) as a colour map on the first video frame:
 
 ```bash
-python scripts/make_paper_figures.py \
-  --data-dir results/plant_1 \
-  --out-dir figures/plant_1
-
-python scripts/make_paper_figures.py \
-  --data-dir results/plant_2 \
-  --out-dir figures/plant_2
+python scripts/create_compliance_overlay.py results/plant_1 --video-path data/plant_1/video.mp4
+python scripts/create_compliance_overlay.py results/plant_2 --video-path data/plant_2/video.mp4
 ```
 
-| Output file | Paper figure |
-|-------------|-------------|
-| `fig4_smoothing.pdf` | Fig. 4 — raw vs smoothed bending/edge metrics |
-| `fig5_motion.pdf` | Fig. 5 — node motion and per-joint bending with CI |
-| `fig6_compliance.pdf` | Fig. 6 — per-edge κ_e with CI bars |
-| `fig7_excitation.pdf` | Fig. 7 — shared excitation proxy time series |
-| `figS_zones.pdf` | Supplementary — zone-averaged metric bar charts |
+### Hero video
 
-### 4 — Generate compliance overlay images
-
-```bash
-python scripts/create_compliance_overlay.py \
-  results/plant_1 \
-  --video-path data/plant_1/video.mp4
-```
-
-Writes colour-coded PNG heatmaps to `results/plant_1/`:
-- `relative_compliance_overlay_first_frame.png` — κ_e (blue=stiff, red=compliant)
-- `relative_compliance_uncertainty_overlay_first_frame.png` — CI width / κ_e
-
-### 5 — Generate the hero compliance video
+The side-by-side video showing both plants with compliance colours live on the branch:
 
 ```bash
 python scripts/make_hero_compliance_video.py \
-  data/plant_1/video.mp4 \
-  results/plant_1/analysis_tracks.csv \
-  data/plant_1/branch_graph.json \
-  results/plant_1/compliance_summary.csv \
-  data/plant_2/video.mp4 \
-  results/plant_2/analysis_tracks.csv \
-  data/plant_2/branch_graph.json \
-  results/plant_2/compliance_summary.csv \
+  data/plant_1/video.mp4  results/plant_1/analysis_tracks.csv \
+  data/plant_1/branch_graph.json  results/plant_1/compliance_summary.csv \
+  data/plant_2/video.mp4  results/plant_2/analysis_tracks.csv \
+  data/plant_2/branch_graph.json  results/plant_2/compliance_summary.csv \
   --out results/hero_compliance.mp4
 ```
 
-### 6 — 3D compliance point cloud (optional)
+### 3D point cloud (optional)
 
-Requires the original RealSense bag file (not included due to size):
+If you have the original RealSense bag file:
 
 ```bash
-python scripts/create_compliance_pointcloud.py \
-  results/plant_1 \
-  /path/to/recording.bag \
-  --mode compliance
+python scripts/create_compliance_pointcloud.py results/plant_1 /path/to/recording.bag --mode compliance
 ```
 
-Or using monocular depth estimation (no bag file needed):
+Or without a bag, using monocular depth estimation:
 
 ```bash
-# Via Hugging Face Transformers (downloads model on first run)
 python scripts/create_monocular_compliance_pointcloud.py \
   results/plant_1 \
   --video-path data/plant_1/video.mp4 \
@@ -190,69 +132,55 @@ python scripts/create_monocular_compliance_pointcloud.py \
 
 ---
 
-## Using your own plant recordings
+## Using it on your own plant
 
-### Step 1 — Convert ROS bag to video
+**Step 1 — Get your video.** If you're recording with a RealSense (or any other ROS bag setup), drop your `.bag` files into a folder and run:
 
 ```bash
-# Place your .bag files in data/my_plant/bags/ and run:
 python data_preparation/bags_to_mp4.py
-# Output: MP4 video alongside the bag file
 ```
 
-### Step 2 — Annotate branch nodes on the first frame
+This uses a pure Python bag reader — no ROS installation needed.
+
+**Step 2 — Annotate the branch nodes.** Open the first frame and click along the branch:
 
 ```bash
-python data_preparation/select_points.py data/my_plant/video.mp4 \
-  -o data/my_plant/annotation_points.json
+python data_preparation/select_points.py data/my_plant/video.mp4 -o data/my_plant/annotation_points.json
 ```
 
-Controls: **left-click** to add a point, **`s`** to save, **`q`** to quit.
+Left-click to place a point, `s` to save, `q` to quit. The order matters — TAPIR assigns `point_id` 0, 1, 2, … in the click order, and you'll reference these IDs in the branch graph.
 
-Output is a JSON list of `[x, y]` pixel coordinates. TAPIR will assign `point_id` 0, 1, 2, … in click order — use these IDs when defining the branch graph.
+**Step 3 — Track the points with TAPIR.** We used [TAPIR](https://github.com/google-deepmind/tapnet) for point tracking. Download it and run your own tracking to generate a CSV with columns `point_id, frame, x, y`. See `data/plant_1/tapir_tracks.csv` for the expected format.
 
-### Step 3 — Track points with TAPIR
-
-Download TAPIR (google-deepmind/tapnet) and run point tracking on your video to produce a CSV with columns `point_id, frame, x, y`. Use `data/plant_1/tapir_tracks.csv` as a reference for the expected format.
-
-### Step 4 — Define the branch graph
-
-Create a JSON file describing the rooted branch skeleton:
+**Step 4 — Define the branch graph.** This tells the pipeline how the tracked nodes connect as a rooted tree:
 
 ```json
 {
   "root": 5,
-  "edges": [
-    [5, 4], [4, 3], [3, 2], [2, 1], [1, 0]
-  ]
+  "edges": [[5,4],[4,3],[3,2],[2,1],[1,0]]
 }
 ```
 
-- `"root"` is the `point_id` of the branch base (closest to pot/trunk)
-- Each edge `[parent, child]` must point **from root toward tip**
+`root` is the node at the base of the branch (closest to the pot or trunk). Every edge goes parent → child, i.e. root toward tip. See the included `branch_graph.json` files for real examples — plant 1 has 20 nodes, plant 2 has 25.
 
-See `data/plant_1/branch_graph.json` (20 nodes) and `data/plant_2/branch_graph.json` (25 nodes) for reference.
-
-### Step 5 — Run the analysis
-
-Follow the same commands as in *Reproducing the results* above, pointing to your own data paths.
+**Step 5 — Run the analysis** using the same commands as above with your own paths.
 
 ---
 
-## Key analysis parameters
+## A few parameters worth knowing
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--smooth-window` | 5 | Moving-average pre-smoothing window (frames) |
-| `--use-factor-graph-smoother` | off | Apply factor-graph smoother after MA pre-smoothing |
-| `--compliance-prior-strength` | 12.0 | Log-shrinkage toward κ_e=1 for low-support edges |
-| `--compliance-bootstrap-samples` | 250 | Bootstrap resamples for 95% confidence intervals |
+The defaults work well, but if your results look noisy or over-smoothed:
+
+- `--smooth-window` (default 5) — moving-average pre-smoothing in frames. Increase for noisier tracks.
+- `--use-factor-graph-smoother` — adds a second smoothing pass that also enforces edge-length consistency. Usually worth enabling.
+- `--compliance-bootstrap-samples` (default 250) — more samples give tighter CI estimates but take longer.
+- `--compliance-prior-strength` (default 12.0) — regularises edges with little motion toward κ_e = 1. Raise this if you see wild values on short or barely-moving edges.
 
 ---
 
 ## Citation
 
-If you use this code or data, please cite:
+If this is useful for your work, please cite the paper:
 
 ```
 Uncertainty-Aware Relative Compliance Estimation of Wind-Excited Plant from Monocular Video
